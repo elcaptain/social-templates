@@ -1,0 +1,8 @@
+# Claude Code local settings — contains secrets (Figma token), never commit
+.claude/
+
+# macOS
+.DS_Store
+
+# Node (dev only; no runtime deps)
+node_modules/

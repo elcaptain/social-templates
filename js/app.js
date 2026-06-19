@@ -1,0 +1,219 @@
+// Generic renderer + editor for the templates defined in templates.js.
+// Builds the stage from a template config, wires up editable fields, and exports a PNG.
+(function () {
+  'use strict';
+
+  const PIXEL_RATIO = 2; // export at 2x → e.g. 2160×2160 for a 1080 frame
+
+  const stageEl = document.getElementById('stage');
+  const scalerEl = document.getElementById('scaler');
+  const controlsEl = document.getElementById('controls');
+  const downloadBtn = document.getElementById('download');
+  const statusEl = document.getElementById('status');
+
+  // --- font-face: inline the Figtree woff2 data URIs (no network) ---
+  function injectFonts() {
+    const css = `
+      @font-face { font-family: 'Figtree'; font-style: normal; font-weight: 400;
+        src: url(${window.ASSETS.figtree400}) format('woff2'); font-display: block; }
+      @font-face { font-family: 'Figtree'; font-style: normal; font-weight: 700;
+        src: url(${window.ASSETS.figtree700}) format('woff2'); font-display: block; }`;
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  // Elements styled with Figma's TITLE case; the auto-capitalize toggle flips these.
+  const titleCaseEls = [];
+  let autoCapitalize = true;
+
+  function applyFont(el, font, color, titleCase) {
+    if (font) {
+      if (font.weight) el.style.fontWeight = font.weight;
+      if (font.size) el.style.fontSize = font.size + 'px';
+      if (font.lineHeight) el.style.lineHeight = font.lineHeight + 'px';
+      if (font.letterSpacing != null) el.style.letterSpacing = font.letterSpacing + 'px';
+    }
+    if (color) el.style.color = color;
+    if (titleCase) {
+      titleCaseEls.push(el);
+      el.style.textTransform = autoCapitalize ? 'capitalize' : 'none';
+    }
+  }
+
+  function setAutoCapitalize(on) {
+    autoCapitalize = on;
+    for (const el of titleCaseEls) el.style.textTransform = on ? 'capitalize' : 'none';
+  }
+
+  // Collects editable field nodes so inputs can update them live.
+  const fields = []; // {field, label, default, el}
+
+  function makeImage(layer) {
+    const img = document.createElement('img');
+    img.src = layer.src;
+    img.className = 'layer-image';
+    if (layer.w) img.style.width = layer.w + 'px';
+    if (layer.h) img.style.height = layer.h + 'px';
+    if (layer.cover) img.style.objectFit = 'cover';
+    return img;
+  }
+
+  function makeTextSpan(child, parentFont, parentColor, parentTitleCase) {
+    const span = document.createElement('span');
+    span.className = 'seg';
+    span.textContent = child.editable ? child.default : child.text;
+    // child.font overrides individual properties (e.g. bold Date) on top of the row font.
+    applyFont(span, Object.assign({}, parentFont, child.font), parentColor, parentTitleCase);
+    if (child.editable) {
+      span.dataset.field = child.field;
+      fields.push({ field: child.field, label: child.label, default: child.default, el: span });
+    }
+    return span;
+  }
+
+  function buildLayer(layer) {
+    if (layer.kind === 'image') {
+      const img = makeImage(layer);
+      img.style.left = layer.x + 'px';
+      img.style.top = layer.y + 'px';
+      return img;
+    }
+
+    if (layer.kind === 'text') {
+      const el = document.createElement('div');
+      el.className = 'layer-text';
+      el.style.left = layer.x + 'px';
+      el.style.top = layer.y + 'px';
+      if (layer.w) el.style.width = layer.w + 'px';
+      el.textContent = layer.text;
+      applyFont(el, layer.font, layer.color, layer.titleCase);
+      return el;
+    }
+
+    if (layer.kind === 'row') {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      row.style.left = layer.x + 'px';
+      row.style.top = layer.y + 'px';
+      row.style.gap = (layer.gap || 0) + 'px';
+      if (layer.align) row.style.alignItems = layer.align;
+      if (layer.padding != null) row.style.padding = layer.padding + 'px';
+      if (layer.radius != null) row.style.borderRadius = layer.radius + 'px';
+      if (layer.background) row.style.background = layer.background;
+
+      for (const child of layer.children) {
+        if (child.kind === 'image') {
+          row.appendChild(makeImage(child));
+        } else {
+          row.appendChild(makeTextSpan(child, layer.font, layer.color, layer.titleCase));
+        }
+      }
+      return row;
+    }
+
+    return document.createDocumentFragment();
+  }
+
+  function buildStage(tpl) {
+    stageEl.style.width = tpl.width + 'px';
+    stageEl.style.height = tpl.height + 'px';
+    stageEl.innerHTML = '';
+    fields.length = 0;
+    titleCaseEls.length = 0;
+    for (const layer of tpl.layers) {
+      stageEl.appendChild(buildLayer(layer));
+    }
+  }
+
+  function buildControls() {
+    controlsEl.innerHTML = '';
+    for (const f of fields) {
+      const wrap = document.createElement('label');
+      wrap.className = 'field';
+      const span = document.createElement('span');
+      span.className = 'field-label';
+      span.textContent = f.label;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = f.default;
+      input.addEventListener('input', () => {
+        // Keep a space so an empty field doesn't collapse the line height.
+        f.el.textContent = input.value || ' ';
+      });
+      wrap.appendChild(span);
+      wrap.appendChild(input);
+      controlsEl.appendChild(wrap);
+    }
+
+    // Auto-capitalize toggle — flips Figma's TITLE case styling on/off.
+    const toggleWrap = document.createElement('label');
+    toggleWrap.className = 'toggle';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = autoCapitalize;
+    toggle.addEventListener('change', () => setAutoCapitalize(toggle.checked));
+    const toggleLabel = document.createElement('span');
+    toggleLabel.textContent = 'Auto-capitalize';
+    toggleWrap.appendChild(toggle);
+    toggleWrap.appendChild(toggleLabel);
+    controlsEl.appendChild(toggleWrap);
+  }
+
+  // Fit the (full-size) stage into its preview column via CSS transform.
+  const PREVIEW_SCALE = 0.5; // show the preview at half the column-fit size
+  function fitPreview(tpl) {
+    // Measure the parent's inner width (the scaler's own width is mutated below).
+    const parent = scalerEl.parentElement;
+    const cs = getComputedStyle(parent);
+    const avail = parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const scale = Math.min(1, avail / tpl.width) * PREVIEW_SCALE;
+    stageEl.style.transform = `scale(${scale})`;
+    // Reserve the scaled-down footprint so layout doesn't overflow.
+    scalerEl.style.width = tpl.width * scale + 'px';
+    scalerEl.style.height = tpl.height * scale + 'px';
+  }
+
+  async function exportPng(tpl) {
+    statusEl.textContent = 'Rendering…';
+    downloadBtn.disabled = true;
+    try {
+      await document.fonts.ready;
+      // Capture at native size regardless of the on-screen preview transform.
+      // pixelRatio scales the output canvas: width*pixelRatio = 2160 for a 1080 frame.
+      // Do NOT also set canvasWidth/Height — html-to-image multiplies them by pixelRatio.
+      const dataUrl = await window.htmlToImage.toPng(stageEl, {
+        pixelRatio: PIXEL_RATIO,
+        width: tpl.width,
+        height: tpl.height,
+        style: { transform: 'none', transformOrigin: 'top left' },
+      });
+      const city = (fields.find((f) => f.field === 'city') || {}).el;
+      const slug = (city ? city.textContent : tpl.id)
+        .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || tpl.id;
+      const link = document.createElement('a');
+      link.download = `${tpl.id}_${slug}.png`;
+      link.href = dataUrl;
+      link.click();
+      statusEl.textContent = 'Downloaded ✓';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Export failed — see console.';
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  }
+
+  function init() {
+    injectFonts();
+    const tpl = window.TEMPLATES[0]; // single template for now
+    buildStage(tpl);
+    buildControls();
+    fitPreview(tpl);
+    window.addEventListener('resize', () => fitPreview(tpl));
+    downloadBtn.addEventListener('click', () => exportPng(tpl));
+    document.fonts.ready.then(() => fitPreview(tpl));
+  }
+
+  init();
+})();
