@@ -5,6 +5,11 @@
 
   const PIXEL_RATIO = 2; // export at 2x → e.g. 2160×2160 for a 1080 frame
 
+  let tpl = null;             // the active template
+  let baseHeight = 0;         // height the layer coords are authored in
+  let currentHeight = 0;      // current selected output height
+  const layerRecords = [];    // {el, layer} for every built layer
+
   const stageEl = document.getElementById('stage');
   const scalerEl = document.getElementById('scaler');
   const controlsEl = document.getElementById('controls');
@@ -38,6 +43,25 @@
   // Collects editable field nodes so inputs can update them live.
   const fields = []; // {field, label, default, el}
 
+  // Per-element transform components, combined into one transform:
+  //   shiftY    — bottom-anchor offset when the output size grows
+  //   collapseY — extra shift when an optional layer above is hidden
+  //   scale/ox/oy — backdrop scale (illustration) about a frame-relative origin
+  const txState = new Map();
+  function getTx(el) {
+    let t = txState.get(el);
+    if (!t) { t = { shiftY: 0, collapseY: 0, scale: 1, ox: 0, oy: 0 }; txState.set(el, t); }
+    return t;
+  }
+  function applyTx(el) {
+    const t = getTx(el);
+    const parts = [];
+    const ty = t.shiftY + t.collapseY;
+    if (ty) parts.push(`translateY(${ty}px)`);
+    if (t.scale !== 1) { parts.push(`scale(${t.scale})`); el.style.transformOrigin = `${t.ox}px ${t.oy}px`; }
+    el.style.transform = parts.join(' ');
+  }
+
   // Optional layers that can be shown/hidden via a checkbox.
   const optionalLayers = []; // {label, el, on, fields:Set, inputs:[], collapseShift}
   // Layers (flagged shiftOnCollapse) that slide down when an optional layer is hidden.
@@ -47,8 +71,7 @@
     opt.el.style.display = opt.on ? '' : 'none';
     for (const input of opt.inputs) input.disabled = !opt.on;
     if (opt.collapseShift) {
-      const ty = opt.on ? '' : `translateY(${opt.collapseShift}px)`;
-      for (const el of shiftEls) el.style.transform = ty;
+      for (const el of shiftEls) { getTx(el).collapseY = opt.on ? 0 : opt.collapseShift; applyTx(el); }
     }
   }
   const optionalLayerForField = (field) => optionalLayers.find((o) => o.fields.has(field));
@@ -146,18 +169,21 @@
     return document.createDocumentFragment();
   }
 
-  function buildStage(tpl) {
+  function buildStage() {
     stageEl.style.width = tpl.width + 'px';
-    stageEl.style.height = tpl.height + 'px';
+    baseHeight = tpl.height;
     stageEl.innerHTML = '';
     fields.length = 0;
     optionalLayers.length = 0;
     shiftEls.length = 0;
     selectLayers.length = 0;
+    layerRecords.length = 0;
+    txState.clear();
     datePicker = null;
     for (const layer of tpl.layers) {
       if (layer.datePicker) datePicker = layer.datePicker;
       const el = buildLayer(layer);
+      layerRecords.push({ el, layer });
       if (layer.shiftOnCollapse) shiftEls.push(el);
       if (layer.optional) {
         const opt = {
@@ -173,8 +199,36 @@
       }
       stageEl.appendChild(el);
     }
-    // Apply initial collapse state (e.g. if a layer defaults to off).
+    // Apply the default output size, then the initial collapse state.
+    const sizes = tpl.sizes || [{ value: 'base', height: tpl.height }];
+    const def = sizes.find((s) => s.value === tpl.defaultSize) || sizes[0];
+    applySize(def.height);
     for (const opt of optionalLayers) applyOptional(opt);
+  }
+
+  // Switch output height: bottom-anchor content, cover/scale the backdrop.
+  function applySize(height) {
+    currentHeight = height;
+    stageEl.style.height = height + 'px';
+    const delta = height - baseHeight;
+    for (const { el, layer } of layerRecords) {
+      if (layer.scaleWithSize) {
+        // Scale proportionally about the frame's top-centre (kept fixed as it grows).
+        const t = getTx(el);
+        t.scale = height / baseHeight;
+        t.ox = tpl.width / 2 - (layer.x || 0);
+        t.oy = 0 - (layer.y || 0);
+        applyTx(el);
+      } else if (layer.backdrop) {
+        // Cover backdrop (gradient): fill the new height, proportions preserved by object-fit.
+        if (layer.cover) el.style.height = height + 'px';
+      } else {
+        // Everything else is anchored to the bottom.
+        getTx(el).shiftY = delta;
+        applyTx(el);
+      }
+    }
+    fitPreview();
   }
 
   function makeCheckbox(checked, labelText, onChange) {
@@ -233,9 +287,33 @@
     return wrap;
   }
 
+  function makeSizePicker() {
+    const wrap = document.createElement('label');
+    wrap.className = 'field';
+    const span = document.createElement('span');
+    span.className = 'field-label';
+    span.textContent = 'Size';
+    const select = document.createElement('select');
+    for (const s of tpl.sizes) {
+      const o = document.createElement('option');
+      o.value = s.value;
+      o.textContent = s.label;
+      if (s.value === tpl.defaultSize) o.selected = true;
+      select.appendChild(o);
+    }
+    select.addEventListener('change', () => {
+      const s = tpl.sizes.find((x) => x.value === select.value);
+      if (s) applySize(s.height);
+    });
+    wrap.appendChild(span);
+    wrap.appendChild(select);
+    return wrap;
+  }
+
   function buildControls() {
     controlsEl.innerHTML = '';
-    // Dropdowns first (e.g. project logo).
+    // Size picker first, then dropdowns (e.g. project logo).
+    if (tpl.sizes && tpl.sizes.length > 1) controlsEl.appendChild(makeSizePicker());
     for (const sel of selectLayers) controlsEl.appendChild(makeSelect(sel));
 
     // One date picker drives all date-derived fields (Weekday + Date).
@@ -277,7 +355,7 @@
 
   // Fit the (full-size) stage into its preview column via CSS transform.
   const PREVIEW_SCALE = 0.5; // show the preview at half the column-fit size
-  function fitPreview(tpl) {
+  function fitPreview() {
     // Measure the parent's inner width (the scaler's own width is mutated below).
     const parent = scalerEl.parentElement;
     const cs = getComputedStyle(parent);
@@ -286,10 +364,10 @@
     stageEl.style.transform = `scale(${scale})`;
     // Reserve the scaled-down footprint so layout doesn't overflow.
     scalerEl.style.width = tpl.width * scale + 'px';
-    scalerEl.style.height = tpl.height * scale + 'px';
+    scalerEl.style.height = currentHeight * scale + 'px';
   }
 
-  async function exportPng(tpl) {
+  async function exportPng() {
     statusEl.textContent = 'Rendering…';
     downloadBtn.disabled = true;
     try {
@@ -300,14 +378,14 @@
       const dataUrl = await window.htmlToImage.toPng(stageEl, {
         pixelRatio: PIXEL_RATIO,
         width: tpl.width,
-        height: tpl.height,
+        height: currentHeight,
         style: { transform: 'none', transformOrigin: 'top left' },
       });
       const city = (fields.find((f) => f.field === 'city') || {}).el;
       const slug = (city ? city.textContent : tpl.id)
         .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || tpl.id;
       const link = document.createElement('a');
-      link.download = `${tpl.id}_${slug}.png`;
+      link.download = `${tpl.id}_${tpl.width}x${currentHeight}_${slug}.png`;
       link.href = dataUrl;
       link.click();
       statusEl.textContent = 'Downloaded ✓';
@@ -321,13 +399,13 @@
 
   function init() {
     injectFonts();
-    const tpl = window.TEMPLATES[0]; // single template for now
-    buildStage(tpl);
+    tpl = window.TEMPLATES[0]; // single template for now
+    buildStage();
     buildControls();
-    fitPreview(tpl);
-    window.addEventListener('resize', () => fitPreview(tpl));
-    downloadBtn.addEventListener('click', () => exportPng(tpl));
-    document.fonts.ready.then(() => fitPreview(tpl));
+    fitPreview();
+    window.addEventListener('resize', fitPreview);
+    downloadBtn.addEventListener('click', exportPng);
+    document.fonts.ready.then(fitPreview);
   }
 
   init();

@@ -25,12 +25,20 @@ window.TEMPLATES = [
     id: 'community-meetup',
     name: 'Community Meetup',
     width: 1080,
-    height: 1080,
+    height: 1080, // base/authoring height; layer y-coords are relative to this
+    // Selectable output sizes. Width is fixed; only the height changes. Content layers
+    // are bottom-anchored, the backdrop (gradient + illustration) scales to fill.
+    defaultSize: 'square',
+    sizes: [
+      { value: 'square', label: 'Square — 1080 × 1080', height: 1080 },
+      { value: 'portrait', label: 'Portrait — 1080 × 1350', height: 1350 },
+    ],
     // Backdrop is the gradient (cover) with the icon illustration on top, clipped by
     // the stage. The illustration sits at a negative offset, exactly as in Figma.
+    // `backdrop` layers are NOT bottom-anchored; `scaleWithSize` scales proportionally.
     layers: [
-      { kind: 'image', src: a.gradient, x: 0, y: 0, w: 1080, h: 1080, cover: true },
-      { kind: 'image', src: a.illustration, x: -444, y: -179, w: 2361, h: 1272 },
+      { kind: 'image', src: a.gradient, x: 0, y: 0, w: 1080, h: 1080, cover: true, backdrop: true },
+      { kind: 'image', src: a.illustration, x: -444, y: -179, w: 2361, h: 1272, backdrop: true, scaleWithSize: true },
 
       // Project logo — a dropdown picks one of the "project-logo" component variants.
       // Left-anchored at x=69; height fixed, width follows each logo's aspect ratio.
