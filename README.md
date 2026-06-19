@@ -8,10 +8,10 @@ graphic and download a rendered PNG. Rebuilt from the Figma design
 
 **Just open `index.html` in a browser** (double-click it). No server, no install, no internet.
 
-Edit **Weekday**, **Date**, **City**, and **Organizer** in the left panel — the green pill
-reflows and grows on one line as you type, exactly like the Figma auto-layout. The **Auto-capitalize** toggle
-switches Figma's Title Case styling on/off (off = renders exactly what you type). Click
-**Download PNG** to save a 2160×2160 image (`community-meetup_<city>.png`).
+Pick the **project logo** and **event date**, and edit **City** and **Organizer** in the left
+panel — the green pill reflows and grows on one line as the copy changes, exactly like the
+Figma auto-layout. Click **Download PNG** to save a 2160×2160 image
+(`community-meetup_<city>.png`).
 
 It works straight from `file://` because every asset (gradient, icon illustration, logos) and
 the Figtree font are inlined as base64 data URIs — the page makes **no network requests**, so

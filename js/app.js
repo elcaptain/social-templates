@@ -23,10 +23,6 @@
     document.head.appendChild(style);
   }
 
-  // Elements styled with Figma's TITLE case; the auto-capitalize toggle flips these.
-  const titleCaseEls = [];
-  let autoCapitalize = true;
-
   function applyFont(el, font, color, titleCase) {
     if (font) {
       if (font.weight) el.style.fontWeight = font.weight;
@@ -35,15 +31,8 @@
       if (font.letterSpacing != null) el.style.letterSpacing = font.letterSpacing + 'px';
     }
     if (color) el.style.color = color;
-    if (titleCase) {
-      titleCaseEls.push(el);
-      el.style.textTransform = autoCapitalize ? 'capitalize' : 'none';
-    }
-  }
-
-  function setAutoCapitalize(on) {
-    autoCapitalize = on;
-    for (const el of titleCaseEls) el.style.textTransform = on ? 'capitalize' : 'none';
+    // Figma's TITLE case styling.
+    if (titleCase) el.style.textTransform = 'capitalize';
   }
 
   // Collects editable field nodes so inputs can update them live.
@@ -162,7 +151,6 @@
     stageEl.style.height = tpl.height + 'px';
     stageEl.innerHTML = '';
     fields.length = 0;
-    titleCaseEls.length = 0;
     optionalLayers.length = 0;
     shiftEls.length = 0;
     selectLayers.length = 0;
@@ -285,19 +273,6 @@
       // Register the input so its optional layer's checkbox can disable it.
       if (opt) { opt.inputs.push(input); input.disabled = !opt.on; }
     }
-
-    // Auto-capitalize toggle — flips Figma's TITLE case styling on/off.
-    const toggleWrap = document.createElement('label');
-    toggleWrap.className = 'toggle';
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.checked = autoCapitalize;
-    toggle.addEventListener('change', () => setAutoCapitalize(toggle.checked));
-    const toggleLabel = document.createElement('span');
-    toggleLabel.textContent = 'Auto-capitalize';
-    toggleWrap.appendChild(toggle);
-    toggleWrap.appendChild(toggleLabel);
-    controlsEl.appendChild(toggleWrap);
   }
 
   // Fit the (full-size) stage into its preview column via CSS transform.
