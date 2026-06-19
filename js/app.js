@@ -67,6 +67,23 @@
   // Image layers driven by a dropdown (e.g. the project logo).
   const selectLayers = []; // {field, label, options, el}
 
+  // One date picker can drive multiple text fields (see datePart in templates.js).
+  let datePicker = null; // {label, default}
+
+  // Parse a YYYY-MM-DD value as a LOCAL date (avoids UTC-shift to the previous day).
+  function parseLocalDate(value) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const DATE_PARTS = {
+    weekday: (dt) => dt.toLocaleDateString('en-US', { weekday: 'long' }) + ',',
+    monthday: (dt) => dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+  };
+  function formatDatePart(value, part) {
+    const fn = DATE_PARTS[part];
+    return fn ? fn(parseLocalDate(value)) : value;
+  }
+
   function makeImage(layer) {
     const img = document.createElement('img');
     img.className = 'layer-image';
@@ -92,7 +109,7 @@
     applyFont(span, Object.assign({}, parentFont, child.font), parentColor, parentTitleCase);
     if (child.editable) {
       span.dataset.field = child.field;
-      fields.push({ field: child.field, label: child.label, default: child.default, el: span });
+      fields.push({ field: child.field, label: child.label, default: child.default, el: span, datePart: child.datePart });
     }
     return span;
   }
@@ -149,7 +166,9 @@
     optionalLayers.length = 0;
     shiftEls.length = 0;
     selectLayers.length = 0;
+    datePicker = null;
     for (const layer of tpl.layers) {
+      if (layer.datePicker) datePicker = layer.datePicker;
       const el = buildLayer(layer);
       if (layer.shiftOnCollapse) shiftEls.push(el);
       if (layer.optional) {
@@ -206,13 +225,40 @@
     return wrap;
   }
 
+  function makeDatePicker(spec, dateFields) {
+    const wrap = document.createElement('label');
+    wrap.className = 'field';
+    const span = document.createElement('span');
+    span.className = 'field-label';
+    span.textContent = spec.label;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = spec.default || '';
+    const apply = () => {
+      if (!input.value) return;
+      for (const f of dateFields) f.el.textContent = formatDatePart(input.value, f.datePart);
+    };
+    input.addEventListener('input', apply);
+    apply(); // sync spans to the initial date
+    wrap.appendChild(span);
+    wrap.appendChild(input);
+    return wrap;
+  }
+
   function buildControls() {
     controlsEl.innerHTML = '';
     // Dropdowns first (e.g. project logo).
     for (const sel of selectLayers) controlsEl.appendChild(makeSelect(sel));
 
+    // One date picker drives all date-derived fields (Weekday + Date).
+    const dateFields = fields.filter((f) => f.datePart);
+    if (datePicker && dateFields.length) {
+      controlsEl.appendChild(makeDatePicker(datePicker, dateFields));
+    }
+
     const emittedToggles = new Set();
     for (const f of fields) {
+      if (f.datePart) continue; // handled by the date picker
       const opt = optionalLayerForField(f.field);
       if (opt && !emittedToggles.has(opt)) {
         emittedToggles.add(opt);

@@ -73,9 +73,11 @@ window.TEMPLATES = [
         font: { weight: 400, size: 38, lineHeight: 33.44, letterSpacing: -0.38 },
         color: INK,
         titleCase: true,
+        // Weekday + Date are driven by one date picker (see datePart below).
+        datePicker: { label: 'Event date', default: '2026-05-27' },
         children: [
-          { kind: 'text', editable: true, field: 'weekday', label: 'Weekday', default: 'Wednesday,' },
-          { kind: 'text', editable: true, field: 'date', label: 'Date', default: 'May 27', font: { weight: 700 } },
+          { kind: 'text', editable: true, field: 'weekday', label: 'Weekday', default: 'Wednesday,', datePart: 'weekday' },
+          { kind: 'text', editable: true, field: 'date', label: 'Date', default: 'May 27', font: { weight: 700 }, datePart: 'monthday' },
           { kind: 'text', text: '|' },
           { kind: 'text', editable: true, field: 'city', label: 'City', default: 'Rome' },
         ],
