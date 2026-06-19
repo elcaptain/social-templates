@@ -32,7 +32,23 @@ window.TEMPLATES = [
       { kind: 'image', src: a.gradient, x: 0, y: 0, w: 1080, h: 1080, cover: true },
       { kind: 'image', src: a.illustration, x: -444, y: -179, w: 2361, h: 1272 },
 
-      { kind: 'image', src: a.haLockup, x: 68, y: 478, w: 524, h: 73, shiftOnCollapse: true },
+      // Project logo — a dropdown picks one of the "project-logo" component variants.
+      // Left-anchored at x=69; height fixed, width follows each logo's aspect ratio.
+      {
+        kind: 'image',
+        x: 69, y: 483, h: 73,
+        shiftOnCollapse: true,
+        select: {
+          field: 'logo',
+          label: 'Project logo',
+          default: 'ha',
+          options: [
+            { value: 'ha', label: 'Home Assistant', src: a.logoHa },
+            { value: 'esphome', label: 'ESPHome', src: a.logoEsphome },
+            { value: 'ma', label: 'Music Assistant', src: a.logoMa },
+          ],
+        },
+      },
 
       {
         kind: 'text',

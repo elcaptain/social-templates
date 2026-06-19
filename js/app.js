@@ -64,10 +64,20 @@
   }
   const optionalLayerForField = (field) => optionalLayers.find((o) => o.fields.has(field));
 
+  // Image layers driven by a dropdown (e.g. the project logo).
+  const selectLayers = []; // {field, label, options, el}
+
   function makeImage(layer) {
     const img = document.createElement('img');
-    img.src = layer.src;
     img.className = 'layer-image';
+    if (layer.select) {
+      const sel = layer.select;
+      const opt = sel.options.find((o) => o.value === sel.default) || sel.options[0];
+      img.src = opt.src;
+      selectLayers.push({ field: sel.field, label: sel.label, options: sel.options, el: img });
+    } else {
+      img.src = layer.src;
+    }
     if (layer.w) img.style.width = layer.w + 'px';
     if (layer.h) img.style.height = layer.h + 'px';
     if (layer.cover) img.style.objectFit = 'cover';
@@ -138,6 +148,7 @@
     titleCaseEls.length = 0;
     optionalLayers.length = 0;
     shiftEls.length = 0;
+    selectLayers.length = 0;
     for (const layer of tpl.layers) {
       const el = buildLayer(layer);
       if (layer.shiftOnCollapse) shiftEls.push(el);
@@ -173,8 +184,33 @@
     return wrap;
   }
 
+  function makeSelect(sel) {
+    const wrap = document.createElement('label');
+    wrap.className = 'field';
+    const span = document.createElement('span');
+    span.className = 'field-label';
+    span.textContent = sel.label;
+    const select = document.createElement('select');
+    for (const o of sel.options) {
+      const optEl = document.createElement('option');
+      optEl.value = o.value;
+      optEl.textContent = o.label;
+      select.appendChild(optEl);
+    }
+    select.addEventListener('change', () => {
+      const o = sel.options.find((x) => x.value === select.value);
+      if (o) sel.el.src = o.src;
+    });
+    wrap.appendChild(span);
+    wrap.appendChild(select);
+    return wrap;
+  }
+
   function buildControls() {
     controlsEl.innerHTML = '';
+    // Dropdowns first (e.g. project logo).
+    for (const sel of selectLayers) controlsEl.appendChild(makeSelect(sel));
+
     const emittedToggles = new Set();
     for (const f of fields) {
       const opt = optionalLayerForField(f.field);

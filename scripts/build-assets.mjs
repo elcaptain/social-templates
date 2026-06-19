@@ -17,8 +17,10 @@ const dataUri = (file, mime) =>
 const assets = {
   gradient: dataUri('gradient.png', 'image/png'),
   illustration: dataUri('illustration.svg', 'image/svg+xml'),
-  haLockup: dataUri('ha-lockup.svg', 'image/svg+xml'),
-  ohfLogo: dataUri('ohf-logo.svg', 'image/svg+xml'),
+  // project-logo variants (component set "project-logo" in Figma)
+  logoHa: dataUri('logo-ha.svg', 'image/svg+xml'),
+  logoEsphome: dataUri('logo-esphome.svg', 'image/svg+xml'),
+  logoMa: dataUri('logo-ma.svg', 'image/svg+xml'),
   figtree400: dataUri('figtree-400.woff2', 'font/woff2'),
   figtree700: dataUri('figtree-700.woff2', 'font/woff2'),
 };

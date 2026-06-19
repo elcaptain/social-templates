@@ -59,7 +59,7 @@
       font-weight: 600;
       margin-bottom: 6px;
     }
-    .field input {
+    .field input, .field select {
       width: 100%;
       padding: 10px 12px;
       font: inherit;
@@ -67,8 +67,9 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       outline: none;
+      background: #fff;
     }
-    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(22,243,190,.25); }
+    .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(22,243,190,.25); }
     .field input:disabled { background: #f1f3f4; color: #9aa4ab; cursor: not-allowed; }
 
     .toggle {

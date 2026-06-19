@@ -34,10 +34,12 @@ dl() { # node_id  format  scale  outfile
 }
 
 echo "Fetching SVG/PNG assets from Figma..."
-dl "1211:3579" svg 1 "$OUT/illustration.svg"   # white HA icon pattern
-dl "1211:4581" svg 1 "$OUT/ha-lockup.svg"      # Home Assistant logo
-dl "1211:4575" svg 1 "$OUT/ohf-logo.svg"       # Open Home Foundation logo
-dl "1211:3577" png 1 "$OUT/gradient-full.png"  # teal gradient group, full 3932² @1x
+dl "1220:175" svg 1 "$OUT/illustration.svg"    # white HA icon pattern (frame meetup-cm-template)
+# project-logo component-set variants (set 1265:3241)
+dl "1265:3240" svg 1 "$OUT/logo-ha.svg"        # Home Assistant
+dl "1265:3242" svg 1 "$OUT/logo-esphome.svg"   # ESPHome
+dl "1265:3495" svg 1 "$OUT/logo-ma.svg"        # Music Assistant
+dl "1220:173" png 1 "$OUT/gradient-full.png"   # teal gradient group, full 3932² @1x
 
 # The gradient group node is 3932px placed at offset (-1088,-1717) inside the 1080² frame,
 # so the visible window is node-relative (1088,1717) size 1080. Derive the crop from the
