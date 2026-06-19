@@ -49,6 +49,15 @@
   // Collects editable field nodes so inputs can update them live.
   const fields = []; // {field, label, default, el}
 
+  // Optional layers that can be shown/hidden via a checkbox.
+  const optionalLayers = []; // {label, el, on, fields:Set, inputs:[]}
+
+  function applyOptional(opt) {
+    opt.el.style.display = opt.on ? '' : 'none';
+    for (const input of opt.inputs) input.disabled = !opt.on;
+  }
+  const optionalLayerForField = (field) => optionalLayers.find((o) => o.fields.has(field));
+
   function makeImage(layer) {
     const img = document.createElement('img');
     img.src = layer.src;
@@ -121,14 +130,49 @@
     stageEl.innerHTML = '';
     fields.length = 0;
     titleCaseEls.length = 0;
+    optionalLayers.length = 0;
     for (const layer of tpl.layers) {
-      stageEl.appendChild(buildLayer(layer));
+      const el = buildLayer(layer);
+      if (layer.optional) {
+        const opt = {
+          label: layer.optionLabel || 'Show layer',
+          el,
+          on: layer.defaultOn !== false,
+          fields: new Set((layer.children || []).filter((c) => c.editable).map((c) => c.field)),
+          inputs: [],
+        };
+        optionalLayers.push(opt);
+        el.style.display = opt.on ? '' : 'none';
+      }
+      stageEl.appendChild(el);
     }
+  }
+
+  function makeCheckbox(checked, labelText, onChange) {
+    const wrap = document.createElement('label');
+    wrap.className = 'toggle';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = checked;
+    box.addEventListener('change', () => onChange(box.checked));
+    const span = document.createElement('span');
+    span.textContent = labelText;
+    wrap.appendChild(box);
+    wrap.appendChild(span);
+    return wrap;
   }
 
   function buildControls() {
     controlsEl.innerHTML = '';
+    const emittedToggles = new Set();
     for (const f of fields) {
+      const opt = optionalLayerForField(f.field);
+      if (opt && !emittedToggles.has(opt)) {
+        emittedToggles.add(opt);
+        controlsEl.appendChild(
+          makeCheckbox(opt.on, opt.label, (on) => { opt.on = on; applyOptional(opt); })
+        );
+      }
       const wrap = document.createElement('label');
       wrap.className = 'field';
       const span = document.createElement('span');
@@ -144,6 +188,9 @@
       wrap.appendChild(span);
       wrap.appendChild(input);
       controlsEl.appendChild(wrap);
+
+      // Register the input so its optional layer's checkbox can disable it.
+      if (opt) { opt.inputs.push(input); input.disabled = !opt.on; }
     }
 
     // Auto-capitalize toggle — flips Figma's TITLE case styling on/off.

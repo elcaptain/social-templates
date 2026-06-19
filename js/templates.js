@@ -63,9 +63,12 @@ window.TEMPLATES = [
         ],
       },
 
-      // By-line: static text + editable bold organizer name.
+      // By-line: static text + editable bold organizer name. Optional — toggled by a checkbox.
       {
         kind: 'row',
+        optional: true,
+        optionLabel: 'Show "organized by" line',
+        defaultOn: true,
         x: 68, y: 982,
         gap: 8,
         align: 'center',
