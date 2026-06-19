@@ -122,14 +122,15 @@
       box-shadow: 0 8px 30px rgba(0,0,0,.12);
     }
     /* Layer primitives */
-    .layer-image { position: absolute; display: block; }
-    .layer-text  { position: absolute; white-space: pre-wrap; }
+    .layer-image { position: absolute; display: block; transition: transform .18s ease; }
+    .layer-text  { position: absolute; white-space: pre-wrap; transition: transform .18s ease; }
     .layer-row {
       position: absolute;
       display: inline-flex;
       flex-direction: row;
       width: max-content;     /* hug content → grows on one line */
       white-space: nowrap;
+      transition: transform .18s ease;
     }
     .layer-row .seg { display: inline-block; white-space: nowrap; }
     .layer-row .layer-image { position: static; }

@@ -50,11 +50,17 @@
   const fields = []; // {field, label, default, el}
 
   // Optional layers that can be shown/hidden via a checkbox.
-  const optionalLayers = []; // {label, el, on, fields:Set, inputs:[]}
+  const optionalLayers = []; // {label, el, on, fields:Set, inputs:[], collapseShift}
+  // Layers (flagged shiftOnCollapse) that slide down when an optional layer is hidden.
+  const shiftEls = [];
 
   function applyOptional(opt) {
     opt.el.style.display = opt.on ? '' : 'none';
     for (const input of opt.inputs) input.disabled = !opt.on;
+    if (opt.collapseShift) {
+      const ty = opt.on ? '' : `translateY(${opt.collapseShift}px)`;
+      for (const el of shiftEls) el.style.transform = ty;
+    }
   }
   const optionalLayerForField = (field) => optionalLayers.find((o) => o.fields.has(field));
 
@@ -131,8 +137,10 @@
     fields.length = 0;
     titleCaseEls.length = 0;
     optionalLayers.length = 0;
+    shiftEls.length = 0;
     for (const layer of tpl.layers) {
       const el = buildLayer(layer);
+      if (layer.shiftOnCollapse) shiftEls.push(el);
       if (layer.optional) {
         const opt = {
           label: layer.optionLabel || 'Show layer',
@@ -140,12 +148,15 @@
           on: layer.defaultOn !== false,
           fields: new Set((layer.children || []).filter((c) => c.editable).map((c) => c.field)),
           inputs: [],
+          collapseShift: layer.collapseShift || 0,
         };
         optionalLayers.push(opt);
         el.style.display = opt.on ? '' : 'none';
       }
       stageEl.appendChild(el);
     }
+    // Apply initial collapse state (e.g. if a layer defaults to off).
+    for (const opt of optionalLayers) applyOptional(opt);
   }
 
   function makeCheckbox(checked, labelText, onChange) {

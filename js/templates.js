@@ -32,7 +32,7 @@ window.TEMPLATES = [
       { kind: 'image', src: a.gradient, x: 0, y: 0, w: 1080, h: 1080, cover: true },
       { kind: 'image', src: a.illustration, x: -444, y: -179, w: 2361, h: 1272 },
 
-      { kind: 'image', src: a.haLockup, x: 68, y: 478, w: 524, h: 73 },
+      { kind: 'image', src: a.haLockup, x: 68, y: 478, w: 524, h: 73, shiftOnCollapse: true },
 
       {
         kind: 'text',
@@ -41,11 +41,13 @@ window.TEMPLATES = [
         font: { weight: 700, size: 120, lineHeight: 105.6, letterSpacing: -1.2 },
         color: INK,
         titleCase: true,
+        shiftOnCollapse: true,
       },
 
       // Editable date-time pill — horizontal auto-layout that grows on one line.
       {
         kind: 'row',
+        shiftOnCollapse: true,
         x: 68, y: 842,
         gap: 10,
         padding: 16,
@@ -69,6 +71,9 @@ window.TEMPLATES = [
         optional: true,
         optionLabel: 'Show "organized by" line',
         defaultOn: true,
+        // When hidden, slide the layers flagged shiftOnCollapse down by this many px so
+        // the content stays bottom-anchored (date-time bottom lands where the by-line was).
+        collapseShift: 104,
         x: 68, y: 982,
         gap: 8,
         align: 'center',
